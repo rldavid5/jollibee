@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tagalog Grammar Path</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom style for highlighted Tagalog words */
+        .tagalog {
+            font-weight: 600;
+            color: #059669; /* emerald-600 */
+        }
+        .translation {
+            font-style: italic;
+            color: #4b5563; /* gray-600 */
+        }
+        /* Style for quiz feedback */
+        .correct {
+            background-color: #d1fae5; /* green-100 */
+            border-left: 4px solid #059669; /* green-600 */
+        }
+        .incorrect {
+            background-color: #fee2e2; /* red-100 */
+            border-left: 4px solid #dc2626; /* red-600 */
+        }
+        
+        /* Styles for the lesson path */
+        .lesson-node-container {
+            position: relative;
+        }
+
+        /* Vertical connector line */
+        .lesson-node-container:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 4.5rem; /* Start below the bubble */
+            bottom: -0.5rem; /* Connect to the top of the next bubble */
+            width: 4px;
+            background-color: #e5e7eb; /* gray-200 */
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+
+        .lesson-bubble {
+            z-index: 10;
+        }
+        
+        /* Style for the connector line when the lesson is completed */
+        .lesson-node-container.completed::after {
+            background-color: #059669; /* emerald-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Main App Container -->
+    <div class="max-w-3xl w-full mx-auto bg-white rounded-lg shadow-xl overflow-hidden my-4">
+        <!-- Header -->
+        <header class="bg-emerald-600 text-white p-6 shadow-md">
+            <h1 class="text-3xl font-bold text-center">Tagalog Grammar Path</h1>
+            <p class="text-center text-emerald-100 mt-1">Learn fundamental Tagalog step-by-step.</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="app-content" class="p-6 md:p-8">
+
+            <!-- View 1: Lesson Path (Default View) -->
+            <section id="lesson-path-view">
+                <!-- Lesson nodes will be injected here -->
+                <div id="lesson-path-container" class="flex flex-col items-center space-y-2">
+                    <!-- Dynamic content -->
+                </div>
+            </section>
+
+            <!-- View 2: Lesson & Quiz (Hidden by default) -->
+            <section id="lesson-view" class="hidden">
+                <button id="back-to-path-btn" class="mb-4 inline-flex items-center text-sm font-semibold text-emerald-600 hover:text-emerald-800">
+                    <!-- Back Arrow SVG -->
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Back to Path
+                </button>
+                
+                <!-- Lesson Content will be injected here -->
+                <article id="lesson-content" class="mb-6 space-y-4"></article>
+
+                <!-- Quiz Section will be injected here -->
+                <section id="quiz-container" class="border-t border-gray-200 pt-6 mt-8"></section>
+            </section>
+
+        </main>
+    </div>
+    
+    <!-- Quiz Feedback Modal -->
+    <div id="feedback-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full">
+            <h3 id="feedback-title" class="text-xl font-bold text-center mb-4"></h3>
+            <p id="feedback-message" class="text-center mb-6"></p>
+            <button id="close-modal-btn" class="w-full bg-emerald-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-emerald-700 transition-colors">
+                Continue
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- ICONS (as SVG strings) ---
+        const ICONS = {
+            lock: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>`,
+            check: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`,
+            structure: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>`,
+            marker: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`,
+            verb: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>`,
+            placeholder: `<svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>`
+        };
+
+        // --- DATA ---
+        // We use an array of units, each with an array of lessons
+        const units = [
+            {
+                unitTitle: "Unit 1: Core Concepts",
+                lessons: [
+                    {
+                        id: 'structure',
+                        title: "Sentence Structure",
+                        icon: ICONS.structure,
+                        content: `
+                            <p class="text-lg text-gray-700">Unlike English (Subject-Verb-Object), the most common Tagalog sentence structure is <strong class="text-emerald-700">Verb-Subject-Object (V-S-O)</strong>.</p>
+                            <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-semibold text-gray-800 mb-2">Example 1:</h4>
+                                <p class="text-xl mb-1"><span class="tagalog">Kumakain ang lalaki ng mansanas.</span></p>
+                                <p class="translation mb-3">"The man is eating an apple."</p>
+                                <ul class="list-disc list-inside space-y-1 text-gray-600">
+                                    <li><strong>Verb:</strong> <span class="tagalog">Kumakain</span> (Is eating)</li>
+                                    <li><strong>Subject:</strong> <span class="tagalog">ang lalaki</span> (The man)</li>
+                                    <li><strong>Object:</strong> <span class="tagalog">ng mansanas</span> (an apple)</li>
+                                </ul>
+                            </div>
+                        `,
+                        quiz: [
+                            {
+                                question: "What is the most common Tagalog sentence structure?",
+                                options: ["Subject-Verb-Object", "Verb-Subject-Object", "Object-Subject-Verb"],
+                                answer: "Verb-Subject-Object"
+                            },
+                            {
+                                question: "In '<span class=\"tagalog\">Bumili ang bata ng laruan</span>' (The child bought a toy), what is the <strong>Subject</strong>?",
+                                options: ["Bumili (bought)", "ang bata (the child)", "ng laruan (a toy)"],
+                                answer: "ang bata (the child)"
+                            }
+                        ]
+                    },
+                    {
+                        id: 'markers_ang',
+                        title: "The 'Ang' Marker",
+                        icon: ICONS.marker,
+                        content: `
+                            <p class="text-lg text-gray-700">Tagalog uses "markers" to indicate the role of a noun in a sentence. The first and most important is <strong class="text-emerald-700">Ang</strong>.</p>
+                            <div class="mt-4 space-y-3">
+                                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <h4 class="font-semibold text-gray-800 text-xl"><span class="tagalog">Ang</span> (The 'Subject' Marker)</h4>
+                                    <p class="text-gray-600 mt-1">Marks the <strong>subject</strong> or <strong>focus</strong> of the sentence. It answers "Who?" or "What?".</p>
+                                    <p class="mt-2"><span class="tagalog">Kumakain <strong class="text-blue-600">ang</strong> lalaki.</span> (<span class="translation"><strong>The</strong> man is eating.</span>)</p>
+                                    <p class="mt-2"><span class="tagalog"><strong class="text-blue-600">Ang</strong> pusa ay natutulog.</span> (<span class="translation"><strong>The</strong> cat is sleeping.</span> - This is the S-V-O form, less common but also used.)</p>
+                                </div>
+                            </div>
+                        `,
+                        quiz: [
+                            {
+                                question: "Which marker indicates the <strong>subject</strong> or <strong>focus</strong> of the sentence?",
+                                options: ["Ang", "Ng", "Sa"],
+                                answer: "Ang"
+                            },
+                            {
+                                question: "In '<span class=\"tagalog\">Tumatakbo <strong>ang</strong> aso</span>' (The dog is running), what is the role of '<strong>ang</strong>'?",
+                                options: ["It marks the object", "It marks the location", "It marks the subject (aso)"],
+                                answer: "It marks the subject (aso)"
+                            }
+                        ]
+                    },
+                    {
+                        id: 'markers_ng_sa',
+                        title: "'Ng' & 'Sa' Markers",
+                        icon: ICONS.marker,
+                        content: `
+                            <p class="text-lg text-gray-700">Now let's learn the other two basic markers: <strong class="text-emerald-700">Ng</strong> (pronounced 'nang') and <strong class="text-emerald-700">Sa</strong>.</p>
+                            <div class="mt-4 space-y-3">
+                                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <h4 class="font-semibold text-gray-800 text-xl"><span class="tagalog">Ng</span> (The 'Object' Marker)</h4>
+                                    <p class="text-gray-600 mt-1">Marks the <strong>object</strong> of the verb. It answers "What is being (verbed)?". It can also show possession (like 'of').</p>
+                                    <p class="mt-2"><span class="tagalog">Kumakain <strong class="text-blue-600">ng</strong> mansanas ang lalaki.</span> (<span class="translation">The man is eating <strong class="text-blue-600">an</strong> apple.</span>)</p>
+                                    <p class="mt-2"><span class="tagalog">Kulay <strong class="text-blue-600">ng</strong> bahay.</span> (<span class="translation">Color <strong class="text-blue-600">of</strong> the house.</span>)</p>
+                                </div>
+                                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <h4 class="font-semibold text-gray-800 text-xl"><span class="tagalog">Sa</span> (The 'Location/Direction' Marker)</h4>
+                                    <p class="text-gray-600 mt-1">Marks the <strong>location</strong>, <strong>direction</strong>, or the indirect object (to/for/at/in/on).</p>
+                                    <p class="mt-2"><span class="tagalog">Pumunta ang bata <strong class="text-blue-600">sa</strong> tindahan.</span> (<span class="translation">The child went <strong class="text-blue-600">to</strong> the store.</span>)</p>
+                                </div>
+                            </div>
+                        `,
+                        quiz: [
+                            {
+                                question: "In '<span class=\"tagalog\">Binigay ko ang bulaklak <strong>sa</strong> guro</span>' (I gave the flower <strong>to</strong> the teacher), what is the role of '<strong>sa</strong>'?",
+                                options: ["Subject", "Object", "Location/Indirect Object"],
+                                answer: "Location/Indirect Object"
+                            },
+                            {
+                                question: "Which marker is used for the <strong>direct object</strong> of a verb (e.g., 'eating <strong>an apple</strong>')?",
+                                options: ["Ang", "Ng", "Sa"],
+                                answer: "Ng"
+                            }
+                        ]
+                    },
+                    {
+                        id: 'verbs',
+                        title: "Basic Verbs (-UM-)",
+                        icon: ICONS.verb,
+                        content: `
+                            <p class="text-lg text-gray-700">Tagalog verbs change based on <strong>tense</strong> (past, present, future). Let's look at one of the most common types: <strong>-UM- verbs</strong>.</p>
+                            <p class="text-gray-700 mt-2">The affix <span class="tagalog">-um-</span> is an "infix," meaning it's inserted <strong>into</strong> the root word, usually after the first consonant.</p>
+                            <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-semibold text-gray-800 mb-2">Example Verb Root: <span class="tagalog">kain</span> (<span class="translation">eat</span>)</h4>
+                                <table class="w-full text-left mt-2">
+                                    <thead><tr class="bg-gray-200"><th class="p-3 font-semibold">Tense</th><th class="p-3 font-semibold">Tagalog</th><th class="p-3 font-semibold">Formula</th></tr></thead>
+                                    <tbody>
+                                        <tr class="border-b"><td class="p-3"><strong>Past</strong></td><td class="p-3"><span class="tagalog text-xl">Kumain</span></td><td class="p-3 text-gray-600"><strong>-um-</strong> + root</td></tr>
+                                        <tr class="border-b"><td class="p-3"><strong>Present</strong></td><td class="p-3"><span class="tagalog text-xl">Kumakain</span></td><td class="p-3 text-gray-600"><strong>-um-</strong> + (repeat 1st syllable) + root</td></tr>
+                                        <tr><td class="p-3"><strong>Future</strong></td><td class="p-3"><span class="tagalog text-xl">Kakain</span></td><td class="p-3 text-gray-600">(repeat 1st syllable) + root</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        `,
+                        quiz: [
+                            {
+                                question: "What is the <strong>past</strong> tense of <span class=\"tagalog\">bili</span> (buy)?",
+                                options: ["Bibili", "Bumibili", "Bumili"],
+                                answer: "Bumili"
+                            },
+                            {
+                                question: "What is the <strong>future</strong> tense of <span class=\"tagalog\">kain</span> (eat)?",
+                                options: ["Kumain", "Kakain", "Kumakain"],
+                                answer: "Kakain"
+                            },
+                            {
+                                question: "The verb <span class=\"tagalog\">Tumatakbo</span> (running) is in what tense?",
+                                options: ["Past", "Present", "Future"],
+                                answer: "Present"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                unitTitle: "Unit 2: More Verbs (Coming Soon!)",
+                lessons: [
+                    { id: 'verbs_mag', title: "'Mag-' Verbs", icon: ICONS.placeholder, content: '<p>Soon!</p>', quiz: [] },
+                    { id: 'verbs_in', title: "'-In-' Verbs", icon: ICONS.placeholder, content: '<p>Soon!</p>', quiz: [] }
+                ]
+            }
+        ];
+        
+        // --- App State ---
+        // We use a Set for quick lookup of completed lessons
+        let completedLessons = new Set();
+        let currentLessonId = null;
+        // This is a mapping to easily find lesson data by ID
+        const allLessons = new Map(units.flatMap(unit => unit.lessons.map(lesson => [lesson.id, lesson])));
+
+        // --- DOM Elements ---
+        const lessonPathContainer = document.getElementById('lesson-path-container');
+        const lessonPathView = document.getElementById('lesson-path-view');
+        const lessonView = document.getElementById('lesson-view');
+        const lessonContentEl = document.getElementById('lesson-content');
+        const quizContainerEl = document.getElementById('quiz-container');
+        const backToPathBtn = document.getElementById('back-to-path-btn');
+        
+        const modal = document.getElementById('feedback-modal');
+        const modalTitle = document.getElementById('feedback-title');
+        const modalMessage = document.getElementById('feedback-message');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // --- Functions ---
+        
+        /**
+         * Renders the entire lesson path based on current progress
+         */
+        function renderLessonPath() {
+            lessonPathContainer.innerHTML = '';
+            let previousLessonCompleted = true; // The first lesson is always unlocked
+
+            units.forEach(unit => {
+                // Add Unit Title
+                const unitTitleEl = document.createElement('h2');
+                unitTitleEl.className = 'text-xl font-bold text-gray-800 my-4';
+                unitTitleEl.textContent = unit.unitTitle;
+                lessonPathContainer.appendChild(unitTitleEl);
+
+                // Add Lessons for this unit
+                unit.lessons.forEach(lesson => {
+                    const isCompleted = completedLessons.has(lesson.id);
+                    const isUnlocked = previousLessonCompleted;
+                    const isLocked = !isUnlocked;
+                    
+                    let bubbleClass, bubbleIcon, nodeClass;
+                    
+                    if (isCompleted) {
+                        bubbleClass = 'bg-emerald-600 text-white';
+                        bubbleIcon = ICONS.check;
+                        nodeClass = 'completed';
+                    } else if (isUnlocked) {
+                        bubbleClass = 'bg-emerald-500 text-white cursor-pointer hover:bg-emerald-600';
+                        bubbleIcon = lesson.icon;
+                        nodeClass = 'unlocked';
+                    } else { // Locked
+                        bubbleClass = 'bg-gray-300 text-gray-500';
+                        bubbleIcon = ICONS.lock;
+                        nodeClass = 'locked';
+                    }
+
+                    const lessonNodeHTML = `
+                        <div class="lesson-node-container w-full max-w-xs ${nodeClass}">
+                            <button 
+                                class="lesson-node w-full flex items-center space-x-4 p-2" 
+                                data-lesson-id="${lesson.id}" 
+                                ${isLocked ? 'disabled' : ''}>
+                                
+                                <span class="lesson-bubble w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center shadow-lg transform transition-transform ${bubbleClass} ${isUnlocked && !isCompleted ? 'hover:scale-110' : ''}">
+                                    ${bubbleIcon}
+                                </span>
+                                <span class="text-left">
+                                    <span class="font-semibold text-lg ${isLocked ? 'text-gray-500' : 'text-gray-800'}">${lesson.title}</span>
+                                </span>
+                            </button>
+                        </div>
+                    `;
+                    lessonPathContainer.insertAdjacentHTML('beforeend', lessonNodeHTML);
+                    
+                    // Update for the next loop
+                    previousLessonCompleted = isCompleted;
+                });
+            });
+        }
+        
+        /**
+         * Switches to the lesson view for a specific lesson
+         */
+        function showLessonView(lessonId) {
+            const lesson = allLessons.get(lessonId);
+            if (!lesson) return;
+            
+            currentLessonId = lessonId;
+
+            // Populate content
+            lessonContentEl.innerHTML = `
+                <h2 class="text-2xl font-bold text-gray-800 mb-3">${lesson.title}</h2>
+                ${lesson.content}
+            `;
+            
+            // Render quiz
+            renderQuiz(lesson);
+
+            // Switch views
+            lessonPathView.classList.add('hidden');
+            lessonView.classList.remove('hidden');
+            window.scrollTo(0, 0); // Scroll to top
+        }
+
+        /**
+         * Returns to the main lesson path
+         */
+        function hideLessonView() {
+            lessonView.classList.add('hidden');
+            lessonPathView.classList.remove('hidden');
+            currentLessonId = null;
+            renderLessonPath(); // Re-render path to show updates
+        }
+
+        /**
+         * Renders the quiz for the current lesson
+         */
+        function renderQuiz(lesson) {
+            if (!lesson.quiz || lesson.quiz.length === 0) {
+                quizContainerEl.innerHTML = "<p class='text-gray-600'>No quiz for this lesson yet.</p>";
+                return;
+            }
+
+            let quizHTML = `<h3 class="text-xl font-bold text-gray-800 mb-4">Quick Quiz! 🧠</h3><form id="quiz-form" class="space-y-6">`;
+
+            lesson.quiz.forEach((q, index) => {
+                quizHTML += `<fieldset class="quiz-question" data-question-index="${index}">
+                    <legend class="text-md font-semibold text-gray-700 mb-2">${index + 1}. ${q.question}</legend>
+                    <div class="space-y-2">`;
+                
+                const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
+                shuffledOptions.forEach(option => {
+                    const optionId = `q${index}-option-${option.replace(/<[^>]*>?/gm, '').replace(/\s+/g, '-')}`;
+                    quizHTML += `
+                        <div>
+                            <input type="radio" id="${optionId}" name="question-${index}" value="${option}" class="form-radio h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300">
+                            <label for="${optionId}" class="ml-3 text-gray-700">${option}</label>
+                        </div>
+                    `;
+                });
+                
+                quizHTML += `</div><div class="feedback-text mt-2 p-3 rounded-md text-sm hidden"></div></fieldset>`;
+            });
+
+            quizHTML += `<button type="submit" class="bg-emerald-600 text-white py-2 px-6 rounded-lg font-semibold hover:bg-emerald-700 transition-colors">Check Answers</button></form>`;
+            quizContainerEl.innerHTML = quizHTML;
+        }
+        
+        /**
+         * Handles the quiz submission and progression
+         */
+        function handleQuizSubmit(event) {
+            event.preventDefault();
+            if (!currentLessonId) return;
+
+            const lesson = allLessons.get(currentLessonId);
+            const form = event.target;
+            const questions = form.querySelectorAll('.quiz-question');
+            let score = 0;
+            let allAnswered = true;
+
+            questions.forEach(questionEl => {
+                const index = questionEl.dataset.questionIndex;
+                const correctAnswer = lesson.quiz[index].answer;
+                const feedbackEl = questionEl.querySelector('.feedback-text');
+                const selectedRadio = questionEl.querySelector(`input[name="question-${index}"]:checked`);
+                
+                feedbackEl.classList.remove('correct', 'incorrect', 'hidden');
+
+                if (selectedRadio) {
+                    const selectedValue = selectedRadio.value;
+                    if (selectedValue === correctAnswer) {
+                        score++;
+                        feedbackEl.innerHTML = `<strong>Correct!</strong>`;
+                        feedbackEl.classList.add('correct');
+                    } else {
+                        feedbackEl.innerHTML = `<strong>Incorrect.</strong> The correct answer is: ${correctAnswer}`;
+                        feedbackEl.classList.add('incorrect');
+                    }
+                } else {
+                    allAnswered = false;
+                    feedbackEl.innerHTML = `Please select an answer.`;
+                    feedbackEl.classList.add('incorrect');
+                }
+            });
+
+            if (!allAnswered) {
+                // Don't show modal if not all questions are answered
+                return;
+            }
+            
+            // Check for pass/fail (e.g., > 50% to pass)
+            const passingScore = lesson.quiz.length / 2;
+            const didPass = score >= passingScore;
+            
+            if (didPass) {
+                completedLessons.add(currentLessonId);
+            }
+            
+            showFeedbackModal(score, lesson.quiz.length, didPass);
+        }
+
+        /**
+         * Shows the feedback modal
+         */
+        function showFeedbackModal(score, total, didPass) {
+            let title, message;
+            if (didPass) {
+                title = "Lesson Complete! 👏";
+                message = `You got ${score} out of ${total} correct. Magaling! The next lesson is unlocked.`;
+            } else {
+                title = "Keep Trying! 💪";
+                message = `You got ${score} out of ${total} correct. Review the lesson and try the quiz again!`;
+            }
+            
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            
+            // Modify modal button click to handle progression
+            closeModalBtn.onclick = () => {
+                modal.classList.add('hidden');
+                if (didPass) {
+                    hideLessonView(); // Go back to path to see unlocked lesson
+                }
+            };
+        }
+
+        // --- Event Listeners ---
+        
+        // Use event delegation for lesson path nodes
+        lessonPathContainer.addEventListener('click', (e) => {
+            const lessonButton = e.target.closest('.lesson-node');
+            if (lessonButton && !lessonButton.disabled) {
+                showLessonView(lessonButton.dataset.lessonId);
+            }
+        });
+        
+        // Listener for the "Back" button
+        backToPathBtn.addEventListener('click', hideLessonView);
+        
+        // Listener for quiz submission (event delegation)
+        lessonView.addEventListener('submit', (e) => {
+            if (e.target.id === 'quiz-form') {
+                handleQuizSubmit(e);
+            }
+        });
+
+        // Close modal on outside click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModalBtn.click(); // Trigger the button's logic
+            }
+        });
+
+        // --- Initialization ---
+        function initApp() {
+            // Load progress from localStorage if you were to add it
+            // For this demo, we start fresh every time.
+            renderLessonPath();
+        }
+        
+        initApp();
+
+    </script>
+</body>
+</html>
+
