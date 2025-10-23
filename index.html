@@ -267,6 +267,21 @@
         ];
         
         // --- App State ---
+        // Detect available storage (supports environments that expose window.storage)
+        const appStorage = (() => {
+            try {
+                const storage = window.storage ?? window.localStorage;
+                if (!storage) return null;
+                const testKey = '__jollibee_progress_test__';
+                storage.setItem(testKey, 'ok');
+                storage.removeItem(testKey);
+                return storage;
+            } catch (error) {
+                console.warn('Storage unavailable, progress will not persist.', error);
+                return null;
+            }
+        })();
+
         // We use a Set for quick lookup of completed lessons
         let completedLessons = new Set();
         let currentLessonId = null;
@@ -288,6 +303,38 @@
 
         // --- Functions ---
         
+        /**
+         * Loads progress from storage into the completed lessons set
+         */
+        function loadProgressFromStorage() {
+            if (!appStorage) return;
+
+            try {
+                const stored = appStorage.getItem('completedLessons');
+                if (!stored) return;
+
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                    completedLessons = new Set(parsed);
+                }
+            } catch (error) {
+                console.warn('Unable to load progress from storage.', error);
+            }
+        }
+
+        /**
+         * Saves the current completed lessons set to storage
+         */
+        function saveProgressToStorage() {
+            if (!appStorage) return;
+
+            try {
+                appStorage.setItem('completedLessons', JSON.stringify([...completedLessons]));
+            } catch (error) {
+                console.warn('Unable to save progress to storage.', error);
+            }
+        }
+
         /**
          * Renders the entire lesson path based on current progress
          */
@@ -463,11 +510,13 @@
             // Check for pass/fail (e.g., > 50% to pass)
             const passingScore = lesson.quiz.length / 2;
             const didPass = score >= passingScore;
-            
+
             if (didPass) {
                 completedLessons.add(currentLessonId);
+                saveProgressToStorage();
+                renderLessonPath();
             }
-            
+
             showFeedbackModal(score, lesson.quiz.length, didPass);
         }
 
@@ -526,8 +575,7 @@
 
         // --- Initialization ---
         function initApp() {
-            // Load progress from localStorage if you were to add it
-            // For this demo, we start fresh every time.
+            loadProgressFromStorage();
             renderLessonPath();
         }
         
